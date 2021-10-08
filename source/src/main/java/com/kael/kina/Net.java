@@ -1,12 +1,11 @@
 package com.kael.kina;
 
-import android.content.Context;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.kael.kina.annotation.ContentType;
+import com.kael.kina.proxy.RequestTools;
 
 
 /**
@@ -15,20 +14,16 @@ import com.kael.kina.annotation.ContentType;
 class Net {
     String method;
     String domain;
-    String params;
-    @ContentType.Type String contentType;
-    String accept;
+    RequestTools params;
     KinaCallback callback;
     KinaDNS dns;
 
 
-    Net(@Nullable String domain, @Nullable String params, @NonNull String method, @ContentType.Type String contentType, String accept, KinaCallback callback) {
+    Net(@Nullable String domain, @Nullable RequestTools params, @NonNull String method, KinaCallback callback) {
         this.method = method;
         this.domain = domain;
         this.callback = callback;
         this.params = params;
-        this.accept = accept;
-        this.contentType = contentType;
     }
 
     protected void setHttpDns(KinaDNS dns) {
@@ -46,17 +41,10 @@ class Net {
             Net n = (Net)obj;
             return TextUtils.equals(method, n.method)
                     && TextUtils.equals(domain, n.domain)
-                    && TextUtils.equals(contentType, n.contentType)
-                    && TextUtils.equals(accept, n.accept)
-                    && TextUtils.equals(params, n.params)
+                    && (params == n.params || params.equals(n.params))
                     && (callback == null || callback.equals(n.callback));
         }
         else return false;
     }
 
-
-    public String toParams() {
-        // TODO 我们希望通过某些方法，在请求时，设置并修改参数中的时间字段，然后重新进行签名，以保证每次重试均有效，
-        return params;
-    }
 }

@@ -34,10 +34,8 @@ class NetworkSchedule {
                 // the request will be remove by default
                 boolean isRequestSuccess = true;
                 Kina kina = new Kina.Builder()
-                        .setParams(net.toParams())
+                        .setParams(net.params)
                         .setCallback(net.callback)
-                        .setAccept(net.accept)
-                        .setContentType(net.contentType)
                         .enableHttpDns(net.dns)
                         .build();
 

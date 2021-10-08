@@ -1,21 +1,22 @@
 package com.kael.kina.proxy;
 
 
-import android.content.Context;
 import android.text.TextUtils;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
 
 import com.kael.kina.tools.Logger;
-import com.kael.kina.annotation.ContentType;
+import com.kael.kina.annotation.FormatType;
 import com.kael.kina.annotation.RequestParam;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -27,38 +28,42 @@ import java.util.List;
  * 此类提供的方法可将继承该类的并且具有 {@link RequestParam} 标记的成员变量生成不同类型的网络请求参数。
  * </p>
  * <p>
- * 使用此类时，请继承该类，并根据需求复写 {@link RequestTools#toPostParam(Context)} 等
+ * 使用此类时，请继承该类，并根据需求复写 {@link RequestTools#toPostParam()} 等
  * </p>
  * <p>
  * 此类中的对应方法均为 {@code protected} 类型，其不希望外部直接调用，而需由其继承类再度封装。
  * </p>
  * <p>
- * {@link #toPostParam(Context)} 等方法，会将提供的对象中，所有非 {@code null} 的值封装成 json 类型的请求参数
+ * {@link #toPostParam()} 等方法，会将提供的对象中，所有非 {@code null} 的值封装成 json 类型的请求参数
  * </p>
  */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-@SuppressWarnings({"WeakerAccess"})
+@SuppressWarnings({"WeakerAccess", "unused"})
 public abstract class RequestTools {
 
-    @ContentType.Type public String contentType = ContentType.JSON;
-    protected boolean isSign = true;
+    @FormatType.Type public String contentType = FormatType.JSON;
+    @FormatType.Type public String accept = FormatType.JSON;
+    public String charset = StandardCharsets.UTF_8.name();
+
 
     protected HashMap<String, String> transparent;
 
-    public String toPostParam(Context context) {
-        if (ContentType.FORM.equals(contentType)) {
-            return toFormParam(context);
+    public String toPostParam() {
+        fresh();
+        if (FormatType.FORM.equals(contentType)) {
+            return toFormParam();
         } else {
-            return toJsonParam(context);
+            return toJsonParam();
         }
     }
 
-    public String toGetParam(Context context) {
+    public String toGetParam() {
+        fresh();
         // we are using same format for post & get param for now
-        return toPostParam(context);
+        return toPostParam();
     }
 
-    protected String toFormParam(Context context) {
+    protected String toFormParam() {
         JSONObject dataJson = generateJsonByFields(transparent);
         Iterator<String> keys = dataJson.keys();
         StringBuilder sb = new StringBuilder();
@@ -71,24 +76,23 @@ public abstract class RequestTools {
             }
         }
         sb.setLength(sb.length() - 1);
-        if (isSign) {
-            //TODO sign
-//            String sign = EncryptApi.sign(context, dataJson);
-//            sb.append("&sign=").append(sign);
+        Pair<String, String> sign = sign(dataJson);
+        if(!TextUtils.isEmpty(sign.second)) {
+            sb.append("&").append(sign.first).append("=").append(sign.second);
         }
         return sb.toString();
     }
 
     @SuppressWarnings("SameParameterValue")
-    protected final String toJsonParam(Context context) {
+    protected final String toJsonParam() {
         JSONObject dataJson = generateJsonByFields(transparent);
-        if(!isSign) return dataJson.toString();
-        //TODO sign
-//        try {
-//            dataJson.put("sign", EncryptApi.sign(context, dataJson));
-//        } catch (JSONException e) {
-//            Logger.error("Put Sign in Json failed, this could cause network request fail");
-//        }
+        Pair<String, String> sign = sign(dataJson);
+        if(TextUtils.isEmpty(sign.second)) return dataJson.toString();
+        try {
+            dataJson.put(sign.first, sign.second);
+        } catch (JSONException e) {
+            Logger.error("Put Sign in Json failed, this could cause network request fail");
+        }
         return dataJson.toString();
     }
 
@@ -122,9 +126,7 @@ public abstract class RequestTools {
             Object o = null;
             try {
                 o = field.get(this);
-            } catch (IllegalAccessException e) {
-                // ignored
-            }
+            } catch (IllegalAccessException ignored) {}
             if(o == null) continue;
             //put value to JSONObject
             String value = request.value();
@@ -138,6 +140,13 @@ public abstract class RequestTools {
         return json;
     }
 
+    protected Pair<String, String> sign(JSONObject params) {
+        return new Pair<>("sign", "");
+    }
+
+
+    protected void fresh() {}
+
     protected boolean isReady() {
         return true;
     }
@@ -150,4 +159,8 @@ public abstract class RequestTools {
         void onReady();
     }
 
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        return super.equals(obj);
+    }
 }

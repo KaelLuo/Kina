@@ -8,11 +8,12 @@ import android.util.Pair;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.kael.kina.annotation.ContentType;
+import com.kael.kina.annotation.Api;
 import com.kael.kina.constant.NetworkCode;
 import com.kael.kina.constant.ToolsConsent;
 import com.kael.kina.httpdns.DnsParser;
 import com.kael.kina.proxy.HeaderTools;
+import com.kael.kina.proxy.RequestTools;
 import com.kael.kina.tools.KinaUtils;
 import com.kael.kina.tools.Logger;
 
@@ -79,15 +80,16 @@ public class Kina {
     private KinaDNS kinaDNS;
 
     private HeaderTools header;
+    private RequestTools params;
+
+    private boolean waitSuccess;
     private boolean isQueue;
     private boolean isCallbackInUiThread;
-    private String accept;
-    private String contentType;
+
     private int retryNum = 3;
     private int retryInterval;
-    private String params;
-    private boolean waitSuccess;
     private boolean retryAble;
+
     private KinaCallback callback;
 
     public static class Builder {
@@ -95,14 +97,13 @@ public class Kina {
         private KinaDNS kinaDNS;
 
         private HeaderTools header;
-        private String accept = ContentType.JSON;
-        private String contentType = ContentType.JSON;
-        private String params = "";
+        private RequestTools params;
 
+        private boolean retryAble;
         private int retryNum = 3;
         private int retryInterval = 500; // 0.5 sec
+
         private boolean waitSuccess;
-        private boolean retryAble;
 
         private boolean isCallbackInUiThread = true;
         private boolean isQueue = true;
@@ -119,58 +120,61 @@ public class Kina {
             }
         };
 
-        public Builder setContentType(String contentType) {
-            this.contentType = contentType;
-            return this;
-        }
-
+        @Api(version = "1.0")
         public Builder setHeader(HeaderTools header) {
             this.header = header;
             return this;
         }
 
+        @Api(version = "1.0")
         public Builder setIsQueue(boolean isQueue) {
             this.isQueue = isQueue;
             return this;
         }
 
-        public Builder setAccept(String accept) {
-            this.accept = accept;
-            return this;
-        }
-
-        public Builder setRetry(boolean retryAble, int nums) {
+        @Api(version = "1.0")
+        public Builder setRetry(boolean retryAble, int times, int interval) {
+            if(times <= 0 || interval <= 0) return this;
             this.retryAble = retryAble;
-            this.retryNum = nums;
-            return this;
-        }
-
-        public Builder setInterval(int interval) {
+            this.retryNum = times;
             this.retryInterval = interval;
             return this;
         }
 
-        public Builder setParams(String params) {
+        @Api(version = "1.0")
+        public Builder setRetry(int times) {
+            if(times <= 0) return this;
+            this.retryAble = true;
+            this.retryNum = times;
+            return this;
+        }
+
+        @Api(version = "1.0")
+        public Builder setParams(RequestTools params) {
             this.params = params;
             return this;
         }
 
+        @Api(version = "1.0")
         public Builder enableHttpDns(@NonNull KinaDNS kinaDNS) {
             this.kinaDNS = kinaDNS;
             return this;
         }
 
-        public Builder setWaitSuccess(boolean waitSuccess) {
-            this.waitSuccess = waitSuccess;
-            return this;
-        }
-
+        @Api(version = "1.0")
         public Builder setCallback(@NonNull KinaCallback callback) {
             this.callback = callback;
             return this;
         }
 
-        public Builder setCallbackInUiThread(boolean isInUiThread) {
+        @Api(version = "1.0")
+        public Builder isWaitSuccess(boolean waitSuccess) {
+            this.waitSuccess = waitSuccess;
+            return this;
+        }
+
+        @Api(version = "1.0")
+        public Builder isCallbackInUiThread(boolean isInUiThread) {
             this.isCallbackInUiThread = isInUiThread;
             return this;
         }
@@ -178,15 +182,15 @@ public class Kina {
         public Kina build() {
             Kina kina = new Kina();
             kina.kinaDNS = this.kinaDNS;
-            kina.accept = this.accept;
-            kina.retryNum = this.retryNum;
-            kina.contentType = this.contentType;
-            kina.retryInterval = this.retryInterval;
-            kina.params = this.params;
-            kina.waitSuccess = this.waitSuccess;
             kina.retryAble = this.retryAble;
+            kina.retryNum = this.retryNum;
+            kina.retryInterval = this.retryInterval;
+
+            kina.waitSuccess = this.waitSuccess;
             kina.callback = this.callback;
             kina.header = this.header;
+            kina.params = this.params;
+
             kina.isCallbackInUiThread = this.isCallbackInUiThread;
             kina.isQueue = isQueue;
             return kina;
@@ -199,7 +203,7 @@ public class Kina {
      * @param domain request url
      */
     public void postAsync(@Nullable String domain) {
-        Net net = new Net(domain, params, ToolsConsent.HTTP_POST, contentType, accept, callback);
+        Net net = new Net(domain, params, ToolsConsent.HTTP_POST, callback);
         net.setHttpDns(kinaDNS);
         async(net);
     }
@@ -217,7 +221,7 @@ public class Kina {
      *
      */
     public void getAsync(@Nullable String domain) {
-        Net net = new Net(domain, params, ToolsConsent.HTTP_GET, contentType, accept, callback);
+        Net net = new Net(domain, params, ToolsConsent.HTTP_GET, callback);
         net.setHttpDns(kinaDNS);
         async(net);
     }
@@ -319,7 +323,7 @@ public class Kina {
             return new Pair<>(new byte[0], false);
         }
         HttpURLConnection conn;
-        String finalDomain = TextUtils.isEmpty(params) ? domain : domain + "?" + params;
+        String finalDomain = TextUtils.isEmpty(params.toGetParam()) ? domain : domain + "?" + params;
         if(kinaDNS != null && kinaDNS.context != null && kinaDNS.isEnable) {
             assert finalDomain != null;
             DnsParser parser = new DnsParser.Builder(kinaDNS.context)
@@ -342,17 +346,17 @@ public class Kina {
             return new Pair<>(new byte[0], false);
         }
 
-        conn.setRequestProperty("Content-Type", contentType);
-        conn.setRequestProperty("Accept", accept);
+        conn.setRequestProperty("Content-Type", params.contentType);
+        conn.setRequestProperty("Accept", params.accept);
         conn.setConnectTimeout(ToolsConsent.CONN_TIMEOUT);
         conn.setDoOutput(false);
         conn.setDoInput(true);
         conn.setUseCaches(false);
-        conn.setRequestProperty("Charset", StandardCharsets.UTF_8.name());
+        conn.setRequestProperty("Charset", params.charset);
 
         HashMap<String, String> mHeader = header == null ? null : header.toHeader();
         if (mHeader != null) {
-            Logger.info("Request Header: %s, Default Header Host: %s, Content-Type: %s, Accept: %s", header.toString(), host, contentType, accept);
+            Logger.info("Request Header: %s, Default Header Host: %s, Content-Type: %s, Accept: %s", header.toString(), host, params.contentType, params.accept);
             for (Map.Entry<String, String> entry : mHeader.entrySet()) {
                 conn.setRequestProperty(entry.getKey(), entry.getValue());
             }
@@ -416,7 +420,6 @@ public class Kina {
      *                  Please note, this param is not doing actually retry even it set as true, it's just a flag.
      * @return return {@code true} if the post request success, otherwise return {@code false}
      */
-    @SuppressWarnings("ConstantConditions")
     Pair<byte[], Boolean> post(@Nullable String domain, boolean retryable, boolean isWait) {
         if(callback == null) {
             Logger.warning("post invoke with null callback, callback is a NonNull argument, check arguments passed in method");
@@ -443,14 +446,14 @@ public class Kina {
             URL url = new URL(domain);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestProperty("Host", host);
-            conn.setRequestProperty("Content-Type", contentType);
-            conn.setRequestProperty("Accept", accept);
+            conn.setRequestProperty("Content-Type", params.contentType);
+            conn.setRequestProperty("Accept", params.accept);
             conn.setRequestMethod(ToolsConsent.HTTP_POST);
             conn.setReadTimeout(ToolsConsent.READ_TIMEOUT);
             conn.setConnectTimeout(ToolsConsent.CONN_TIMEOUT);
             HashMap<String, String> mHeader = header == null ? null : header.toHeader();
             if (mHeader != null) {
-                Logger.info("Request Header: %s, Default Header Host: %s, Content-Type: %s, Accept: %s", header.toString(), host, contentType, accept);
+                Logger.info("Request Header: %s, Default Header Host: %s, Content-Type: %s, Accept: %s", header.toString(), host, params.contentType, params.accept);
                 for (Map.Entry<String, String> entry : mHeader.entrySet()) {
                     conn.setRequestProperty(entry.getKey(), entry.getValue());
                 }
@@ -460,7 +463,8 @@ public class Kina {
 
             //set post request params
             Logger.info("Requested param: %s", params);
-            if (!TextUtils.isEmpty(params)) {
+            String paramsStr = params.toPostParam();
+            if (!TextUtils.isEmpty(paramsStr)) {
                 OutputStream out = null;
                 try {
                     out = new BufferedOutputStream(conn.getOutputStream());
@@ -470,7 +474,7 @@ public class Kina {
                 if (out != null) {
                     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
                     try {
-                        writer.write(params);
+                        writer.write(paramsStr);
                         writer.flush();
                     } catch (IOException e) {
                         Logger.warning("Exception happen when read http param in streams, url: %s", domain, e);

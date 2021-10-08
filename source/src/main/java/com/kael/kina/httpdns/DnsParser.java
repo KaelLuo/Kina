@@ -136,8 +136,7 @@ public class DnsParser {
         DnsParam param = new DnsParam(host, id, key);
         param.timeout = timeout;
         Kina request = new Kina.Builder()
-                .setContentType(param.contentType)
-                .setParams(param.toGetParam(context))
+                .setParams(param)
                 .build();
         String result = new String(request.getSync(api), StandardCharsets.UTF_8);
         if (TextUtils.isEmpty(result)) return "";

@@ -1,6 +1,5 @@
 package com.kael.kina;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -12,7 +11,6 @@ import androidx.annotation.Nullable;
 import com.kael.kina.annotation.ContentType;
 import com.kael.kina.constant.NetworkCode;
 import com.kael.kina.constant.ToolsConsent;
-import com.kael.kina.httpdns.DNSCallback;
 import com.kael.kina.httpdns.DnsParser;
 import com.kael.kina.proxy.HeaderTools;
 import com.kael.kina.tools.KinaUtils;
@@ -81,7 +79,7 @@ public class Kina {
     private KinaDNS kinaDNS;
 
     private HeaderTools header;
-    private boolean isOrder;
+    private boolean isQueue;
     private boolean isCallbackInUiThread;
     private String accept;
     private String contentType;
@@ -107,7 +105,7 @@ public class Kina {
         private boolean retryAble;
 
         private boolean isCallbackInUiThread = true;
-        private boolean isOrder = true;
+        private boolean isQueue = true;
 
         private KinaCallback callback = new KinaCallback() {
             @Override
@@ -131,8 +129,8 @@ public class Kina {
             return this;
         }
 
-        public Builder setIsOrder(boolean isOrder) {
-            this.isOrder = isOrder;
+        public Builder setIsQueue(boolean isQueue) {
+            this.isQueue = isQueue;
             return this;
         }
 
@@ -190,7 +188,7 @@ public class Kina {
             kina.callback = this.callback;
             kina.header = this.header;
             kina.isCallbackInUiThread = this.isCallbackInUiThread;
-            kina.isOrder = isOrder;
+            kina.isQueue = isQueue;
             return kina;
         }
 
@@ -241,7 +239,7 @@ public class Kina {
         }
         if(isInclude) return;
 
-        if(isOrder) singleThreadExecutor.schedule(() -> doRequest(net), 10, TimeUnit.MILLISECONDS);
+        if(isQueue) singleThreadExecutor.schedule(() -> doRequest(net), 10, TimeUnit.MILLISECONDS);
         else new Thread(() -> doRequest(net)).start();
     }
 

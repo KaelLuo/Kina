@@ -78,6 +78,7 @@ public class Kina {
 
     @Nullable private Context context;
     private HeaderTools header;
+    private boolean isOrder;
     private boolean isCallbackInUiThread;
     private boolean enableHttpDns;
     private String accept;
@@ -102,6 +103,7 @@ public class Kina {
         private boolean waitSuccess;
         private boolean retryAble;
         private boolean isCallbackInUiThread = true;
+        private boolean isOrder = true;
         private KinaCallback callback = new KinaCallback() {
             @Override
             public void onSuccess(int code, byte[] data) {
@@ -121,6 +123,11 @@ public class Kina {
 
         public Builder setHeader(HeaderTools header) {
             this.header = header;
+            return this;
+        }
+
+        public Builder setIsOrder(boolean isOrder) {
+            this.isOrder = isOrder;
             return this;
         }
 
@@ -174,20 +181,21 @@ public class Kina {
         }
 
         public Kina build() {
-            Kina utils = new Kina();
-            utils.accept = this.accept;
-            utils.retryNum = this.retryNum;
-            utils.contentType = this.contentType;
-            utils.retryInterval = this.retryInterval;
-            utils.params = this.params;
-            utils.waitSuccess = this.waitSuccess;
-            utils.retryAble = this.retryAble;
-            utils.callback = this.callback;
-            utils.context = this.context;
-            utils.enableHttpDns = this.enableHttpDns;
-            utils.header = this.header;
-            utils.isCallbackInUiThread = this.isCallbackInUiThread;
-            return utils;
+            Kina kina = new Kina();
+            kina.accept = this.accept;
+            kina.retryNum = this.retryNum;
+            kina.contentType = this.contentType;
+            kina.retryInterval = this.retryInterval;
+            kina.params = this.params;
+            kina.waitSuccess = this.waitSuccess;
+            kina.retryAble = this.retryAble;
+            kina.callback = this.callback;
+            kina.context = this.context;
+            kina.enableHttpDns = this.enableHttpDns;
+            kina.header = this.header;
+            kina.isCallbackInUiThread = this.isCallbackInUiThread;
+            kina.isOrder = isOrder;
+            return kina;
         }
 
     }
@@ -235,9 +243,10 @@ public class Kina {
                 requests.add(net);
             }
         }
-        if(!isInclude) {
-            singleThreadExecutor.schedule(() -> doRequest(net), 10, TimeUnit.MILLISECONDS);
-        }
+        if(isInclude) return;
+
+        if(isOrder) singleThreadExecutor.schedule(() -> doRequest(net), 10, TimeUnit.MILLISECONDS);
+        else new Thread(() -> doRequest(net)).start();
     }
 
 

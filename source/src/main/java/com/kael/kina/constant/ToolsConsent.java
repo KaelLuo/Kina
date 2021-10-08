@@ -6,6 +6,8 @@ import androidx.annotation.RestrictTo;
 public abstract class ToolsConsent {
 
 
+    public static final int DNS_TIMEOUT = 2000;
+
     public static final int READ_TIMEOUT = 15000;
     public static final int CONN_TIMEOUT = 15000;
 

@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 
 
 import com.kael.kina.Kina;
+import com.kael.kina.constant.ToolsConsent;
 import com.kael.kina.tools.DES;
 import com.kael.kina.tools.KinaUtils;
 import com.kael.kina.tools.Logger;
@@ -26,18 +27,32 @@ public class DnsParser {
 
     private String id;
     private String key;
+    private Context context;
+    private DNSCallback callback;
+    private String timeout;
+
     private String host; // 域名,通过url处理所得: 如 yapi.39on.com
     private String url; // 具体请求 url, 如 http://yapi.39on.com/mock/75/go/cfg/v2/float_window
-    private Context context;
+
 
     public static class Builder {
 
         private final Context context;
         private String key;
         private String id;
+        private int timeout = ToolsConsent.DNS_TIMEOUT;
+        private DNSCallback callback = (url, attackIp, executeIp) ->
+                Logger.warning("DNS attack happen, Kina defence it , url: %s, attackIp: %s, executeIp: %s", url, attackIp, executeIp);
+
 
         public Builder(@NonNull Context context) {
             this.context = context;
+        }
+
+        public DnsParser.Builder setTimeOut(int timeOut) {
+            if(timeOut <= 0) return this;
+            this.timeout = timeOut;
+            return this;
         }
 
         public DnsParser.Builder setKey(String key) {
@@ -50,6 +65,12 @@ public class DnsParser {
             return this;
         }
 
+        public DnsParser.Builder setCallback(DNSCallback callback) {
+            if(callback == null) return this;
+            this.callback = callback;
+            return this;
+        }
+
         public DnsParser build(@NonNull String url) {
             DnsParser dnsParser = new DnsParser();
             dnsParser.context = context;
@@ -58,6 +79,8 @@ public class DnsParser {
             dnsParser.host = TextUtils.isEmpty(host) ? url : host;
             dnsParser.id = id;
             dnsParser.key = key;
+            dnsParser.callback = callback;
+            dnsParser.timeout = String.valueOf(timeout);
             return dnsParser;
         }
     }
@@ -79,9 +102,10 @@ public class DnsParser {
 
         String apiIp = getIpFromApi();
         savedIp = getSavedIp(); // Saved IP will refresh after call getIpFromApi()
-        if(!TextUtils.isEmpty(localIp) && savedIp.contains(localIp)) return host;
+        if(TextUtils.isEmpty(apiIp) || (!TextUtils.isEmpty(localIp) && savedIp.contains(localIp))) return host;
 
-        return TextUtils.isEmpty(apiIp) ? host : apiIp;
+        callback.onAttack(url, localIp, apiIp);
+        return apiIp;
     }
 
     /**
@@ -110,6 +134,7 @@ public class DnsParser {
 
         String api = "http://119.29.29.98/d";
         DnsParam param = new DnsParam(host, id, key);
+        param.timeout = timeout;
         Kina request = new Kina.Builder()
                 .setContentType(param.contentType)
                 .setParams(param.toGetParam(context))
@@ -117,7 +142,6 @@ public class DnsParser {
         String result = new String(request.getSync(api), StandardCharsets.UTF_8);
         if (TextUtils.isEmpty(result)) return "";
 
-//        String data = new String(EncryptApi.desDecrypt(context, KinaUtils.hexToBytes(result)), StandardCharsets.UTF_8);
         String data = new String(DES.decrypt(KinaUtils.hexToBytes(result), key), StandardCharsets.UTF_8);
         if(TextUtils.isEmpty(data)) return "";
         Logger.info("Decrypt http dns data: %s", data);

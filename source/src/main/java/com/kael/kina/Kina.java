@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import com.kael.kina.annotation.ContentType;
 import com.kael.kina.constant.NetworkCode;
 import com.kael.kina.constant.ToolsConsent;
+import com.kael.kina.httpdns.DNSCallback;
 import com.kael.kina.httpdns.DnsParser;
 import com.kael.kina.proxy.HeaderTools;
 import com.kael.kina.tools.KinaUtils;
@@ -76,11 +77,12 @@ public class Kina {
     private static final List<Net> requests = new ArrayList<>(); // This list exist just for filter repeat network request
     private static final ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 
-    @Nullable private Context context;
+    /** passed argument options, following variable are passed via builder which from the caller */
+    private KinaDNS kinaDNS;
+
     private HeaderTools header;
     private boolean isOrder;
     private boolean isCallbackInUiThread;
-    private boolean enableHttpDns;
     private String accept;
     private String contentType;
     private int retryNum = 3;
@@ -92,18 +94,21 @@ public class Kina {
 
     public static class Builder {
 
-        private Context context;
+        private KinaDNS kinaDNS;
+
         private HeaderTools header;
-        private boolean enableHttpDns;
         private String accept = ContentType.JSON;
         private String contentType = ContentType.JSON;
+        private String params = "";
+
         private int retryNum = 3;
         private int retryInterval = 500; // 0.5 sec
-        private String params = "";
         private boolean waitSuccess;
         private boolean retryAble;
+
         private boolean isCallbackInUiThread = true;
         private boolean isOrder = true;
+
         private KinaCallback callback = new KinaCallback() {
             @Override
             public void onSuccess(int code, byte[] data) {
@@ -152,15 +157,8 @@ public class Kina {
             return this;
         }
 
-        public Builder enableHttpDns(@NonNull Context context) {
-            this.context = context;
-            this.enableHttpDns = true;
-            return this;
-        }
-
-        public Builder setHttpDns(@Nullable Context context, boolean isEnable) {
-            this.context = context;
-            this.enableHttpDns = isEnable;
+        public Builder enableHttpDns(@NonNull KinaDNS kinaDNS) {
+            this.kinaDNS = kinaDNS;
             return this;
         }
 
@@ -168,7 +166,6 @@ public class Kina {
             this.waitSuccess = waitSuccess;
             return this;
         }
-
 
         public Builder setCallback(@NonNull KinaCallback callback) {
             this.callback = callback;
@@ -182,6 +179,7 @@ public class Kina {
 
         public Kina build() {
             Kina kina = new Kina();
+            kina.kinaDNS = this.kinaDNS;
             kina.accept = this.accept;
             kina.retryNum = this.retryNum;
             kina.contentType = this.contentType;
@@ -190,8 +188,6 @@ public class Kina {
             kina.waitSuccess = this.waitSuccess;
             kina.retryAble = this.retryAble;
             kina.callback = this.callback;
-            kina.context = this.context;
-            kina.enableHttpDns = this.enableHttpDns;
             kina.header = this.header;
             kina.isCallbackInUiThread = this.isCallbackInUiThread;
             kina.isOrder = isOrder;
@@ -206,7 +202,7 @@ public class Kina {
      */
     public void postAsync(@Nullable String domain) {
         Net net = new Net(domain, params, ToolsConsent.HTTP_POST, contentType, accept, callback);
-        net.setHttpDns(context, enableHttpDns);
+        net.setHttpDns(kinaDNS);
         async(net);
     }
 
@@ -224,7 +220,7 @@ public class Kina {
      */
     public void getAsync(@Nullable String domain) {
         Net net = new Net(domain, params, ToolsConsent.HTTP_GET, contentType, accept, callback);
-        net.setHttpDns(context, enableHttpDns);
+        net.setHttpDns(kinaDNS);
         async(net);
     }
 
@@ -326,9 +322,13 @@ public class Kina {
         }
         HttpURLConnection conn;
         String finalDomain = TextUtils.isEmpty(params) ? domain : domain + "?" + params;
-        if(enableHttpDns && context != null) {
+        if(kinaDNS != null && kinaDNS.context != null && kinaDNS.isEnable) {
             assert finalDomain != null;
-            DnsParser parser = new DnsParser.Builder(context).build(finalDomain);
+            DnsParser parser = new DnsParser.Builder(kinaDNS.context)
+                    .setKey(kinaDNS.key).setId(kinaDNS.id)
+                    .setCallback(kinaDNS.callback)
+                    .setTimeOut(kinaDNS.timeout)
+                    .build(finalDomain);
             finalDomain = parser.getSafeUrl();
         }
         Logger.debug(URL_IS, finalDomain);
@@ -429,9 +429,13 @@ public class Kina {
             return new Pair<>(new byte[0], false);
         }
         String host = KinaUtils.getHost(domain);
-        if(enableHttpDns && context != null) {
+        if(kinaDNS != null && kinaDNS.isEnable && kinaDNS.context != null) {
             assert domain != null;
-            DnsParser parser = new DnsParser.Builder(context).build(domain);
+            DnsParser parser = new DnsParser.Builder(kinaDNS.context)
+                    .setId(kinaDNS.id).setKey(kinaDNS.key)
+                    .setCallback(kinaDNS.callback)
+                    .setTimeOut(kinaDNS.timeout)
+                    .build(domain);
             domain = parser.getSafeUrl();
         }
         Logger.info(URL_IS, domain);

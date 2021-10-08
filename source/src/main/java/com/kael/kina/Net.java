@@ -13,14 +13,13 @@ import com.kael.kina.annotation.ContentType;
  * A proxy for a network request, it contains some basic values
  */
 class Net {
-    boolean enableHttpDns;
-    Context context;
     String method;
     String domain;
     String params;
     @ContentType.Type String contentType;
     String accept;
     KinaCallback callback;
+    KinaDNS dns;
 
 
     Net(@Nullable String domain, @Nullable String params, @NonNull String method, @ContentType.Type String contentType, String accept, KinaCallback callback) {
@@ -32,9 +31,8 @@ class Net {
         this.contentType = contentType;
     }
 
-    protected void setHttpDns(Context context, boolean isEnable) {
-        this.context = context;
-        this.enableHttpDns = isEnable;
+    protected void setHttpDns(KinaDNS dns) {
+        this.dns = dns;
     }
 
     /**

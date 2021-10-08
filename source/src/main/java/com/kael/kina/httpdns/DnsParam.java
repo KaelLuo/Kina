@@ -4,6 +4,7 @@ package com.kael.kina.httpdns;
 
 import com.kael.kina.annotation.ContentType;
 import com.kael.kina.annotation.RequestParam;
+import com.kael.kina.constant.ToolsConsent;
 import com.kael.kina.proxy.RequestTools;
 import com.kael.kina.tools.DES;
 import com.kael.kina.tools.KinaUtils;
@@ -21,7 +22,7 @@ public class DnsParam extends RequestTools {
     public DnsParam(String domain, String id, String key) {
         contentType = ContentType.FORM;
         isSign = false;
-        timeout = "2000";
+        timeout = String.valueOf(ToolsConsent.DNS_TIMEOUT);
         this.id = id;
         this.domain = KinaUtils.bytesToHex(DES.encrypt(domain.getBytes(StandardCharsets.UTF_8), key));
         this.algorithm = "des";

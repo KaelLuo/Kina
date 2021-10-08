@@ -33,22 +33,18 @@ class NetworkSchedule {
                 // default request success, so if the method is something we don't support
                 // the request will be remove by default
                 boolean isRequestSuccess = true;
+                Kina kina = new Kina.Builder()
+                        .setParams(net.toParams())
+                        .setCallback(net.callback)
+                        .setAccept(net.accept)
+                        .setContentType(net.contentType)
+                        .enableHttpDns(net.dns)
+                        .build();
+
                 if (ToolsConsent.HTTP_POST.equals(net.method)) {
-                    isRequestSuccess = new Kina.Builder()
-                            .setParams(net.toParams())
-                            .setCallback(net.callback)
-                            .setAccept(net.accept)
-                            .setContentType(net.contentType)
-                            .setHttpDns(net.context, net.enableHttpDns)
-                            .build().post(net.domain, false, true).second;
+                    isRequestSuccess = kina.post(net.domain, false, true).second;
                 } else if (ToolsConsent.HTTP_GET.equals(net.method)) {
-                    isRequestSuccess = new Kina.Builder()
-                            .setParams(net.toParams())
-                            .setCallback(net.callback)
-                            .setAccept(net.accept)
-                            .setHttpDns(net.context, net.enableHttpDns)
-                            .setContentType(net.contentType)
-                            .build().get(net.domain, false, true).second;
+                    isRequestSuccess = kina.get(net.domain, false, true).second;
                 } else {
                     Logger.error("Unsupported query request type: %s for url: %s", net.method, net.domain);
                 }

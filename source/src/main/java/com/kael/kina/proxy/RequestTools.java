@@ -161,6 +161,12 @@ public abstract class RequestTools {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        return super.equals(obj);
+        if (!(obj instanceof RequestTools)) return false;
+        RequestTools others = (RequestTools) obj;
+        return this.charset.equals(others.charset)
+                && this.accept.equals(others.accept)
+                && this.contentType.equals(others.contentType)
+                && this.toGetParam().equals(others.toGetParam())
+                && this.toPostParam().equals(others.toPostParam());
     }
 }

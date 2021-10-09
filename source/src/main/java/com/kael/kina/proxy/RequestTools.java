@@ -63,8 +63,8 @@ public abstract class RequestTools {
         return toPostParam();
     }
 
-    protected String toFormParam() {
-        JSONObject dataJson = generateJsonByFields(transparent);
+    protected final String toFormParam() {
+        JSONObject dataJson = generateJsonByFields();
         Iterator<String> keys = dataJson.keys();
         StringBuilder sb = new StringBuilder();
         while (keys.hasNext()) {
@@ -83,9 +83,8 @@ public abstract class RequestTools {
         return sb.toString();
     }
 
-    @SuppressWarnings("SameParameterValue")
     protected final String toJsonParam() {
-        JSONObject dataJson = generateJsonByFields(transparent);
+        JSONObject dataJson = generateJsonByFields();
         Pair<String, String> sign = sign(dataJson);
         if(TextUtils.isEmpty(sign.second)) return dataJson.toString();
         try {
@@ -94,6 +93,10 @@ public abstract class RequestTools {
             Logger.error("Put Sign in Json failed, this could cause network request fail");
         }
         return dataJson.toString();
+    }
+
+    @NonNull protected final JSONObject generateJsonByFields() {
+        return generateJsonByFields(transparent);
     }
 
 
